@@ -65,32 +65,43 @@ st.markdown("""
 # Cache functions for better performance
 @st.cache_resource
 def load_model():
-    """Load the trained model"""
+    """Load the trained model from .h5 file"""
     try:
-        model = tf.keras.models.load_model('disease_prediction_model')
+        # Load model from .h5 file
+        model = tf.keras.models.load_model('disease_prediction_model.h5')
         return model
-    except:
-        st.error("Model file not found. Please make sure to save your model first.")
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        st.error("Make sure 'disease_prediction_model.h5' file exists in the current directory.")
+        return None
+
+@st.cache_resource
+def load_label_encoder():
+    """Load the label encoder from pickle file"""
+    try:
+        # Load label encoder from pickle file
+        with open('label_encoder.pkl', 'rb') as f:
+            label_encoder = pickle.load(f)
+        return label_encoder
+    except Exception as e:
+        st.error(f"Error loading label encoder: {e}")
+        st.error("Make sure 'label_encoder.pkl' file exists in the current directory.")
         return None
 
 @st.cache_data
 def load_data():
-    """Load the dataset and preprocessing objects"""
+    """Load the dataset and get symptom columns"""
     try:
         # Load the dataset
         df = pd.read_csv("extracted_files/Final_Augmented_dataset_Diseases_and_Symptoms.csv")
         
-        # Create and fit label encoder
-        label_encoder = LabelEncoder()
-        label_encoder.fit(df['diseases'])
-        
         # Get all symptom columns (all columns except 'diseases')
         symptom_cols = [col for col in df.columns if col != 'diseases']
         
-        return df, label_encoder, symptom_cols
+        return df, symptom_cols
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return None, None, None
+        return None, None
 
 # Function to create radar chart for symptoms
 def create_radar_chart(selected_symptoms):
@@ -199,12 +210,21 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Load data and model
-    df, label_encoder, symptom_cols = load_data()
+    # Load model and label encoder
     model = load_model()
+    label_encoder = load_label_encoder()
     
-    if df is None or model is None:
+    # Load data
+    df, symptom_cols = load_data()
+    
+    if df is None or model is None or label_encoder is None:
         st.error("Failed to load necessary components. Please check the error messages above.")
+        st.info("""
+        Make sure the following files exist in your directory:
+        - disease_prediction_model.h5 (TensorFlow model file)
+        - label_encoder.pkl (Pickle file containing the label encoder)
+        - extracted_files/Final_Augmented_dataset_Diseases_and_Symptoms.csv (Dataset file)
+        """)
         return
     
     # Get all unique diseases for reference
